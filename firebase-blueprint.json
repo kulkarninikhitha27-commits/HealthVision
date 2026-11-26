@@ -1,0 +1,162 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Authenticated user account preferences and display profile without PII.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "preferredLanguage": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "preferredLanguage", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII document for user email and account metadata.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 160 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "FamilyProfile": {
+      "title": "FamilyProfile",
+      "description": "Family member health profile with emergency card, privacy controls, and wellness goals.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 80 },
+        "relation": { "type": "string", "maxLength": 40 },
+        "age": { "type": "number" },
+        "bloodType": { "type": "string", "maxLength": 12 },
+        "avatarUrl": { "type": "string", "maxLength": 300 },
+        "preferredLanguage": { "type": "string", "maxLength": 32 },
+        "pinCode": { "type": "string", "maxLength": 12 },
+        "isLocked": { "type": "boolean" },
+        "conditions": { "type": "array" },
+        "allergies": { "type": "array" },
+        "emergencyNotes": { "type": "string", "maxLength": 500 },
+        "emergencyContacts": { "type": "array" },
+        "privacySettings": { "type": "object" },
+        "goals": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "name", "relation", "age", "bloodType", "preferredLanguage", "isLocked", "conditions", "allergies", "emergencyContacts", "privacySettings", "goals", "createdAt", "updatedAt"]
+    },
+    "LabReport": {
+      "title": "LabReport",
+      "description": "Analyzed medical lab report with extracted parameters, risk predictions, simplified terms, and follow-up Q&A.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "profileId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "maxLength": 140 },
+        "labName": { "type": "string", "maxLength": 120 },
+        "reportDate": { "type": "string", "maxLength": 24 },
+        "category": { "type": "string", "maxLength": 64 },
+        "plainSummary": { "type": "string", "maxLength": 3000 },
+        "metrics": { "type": "array" },
+        "riskSignals": { "type": "array" },
+        "simplifiedTerms": { "type": "array" },
+        "followUpQuestions": { "type": "array" },
+        "refinedAdvice": { "type": "string", "maxLength": 2500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "profileId", "title", "labName", "reportDate", "category", "plainSummary", "metrics", "riskSignals", "simplifiedTerms", "followUpQuestions", "createdAt", "updatedAt"]
+    },
+    "HealthReminder": {
+      "title": "HealthReminder",
+      "description": "Smart reminder for upcoming lab tests, doctor appointments, or checkups.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "profileId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "maxLength": 140 },
+        "dueDate": { "type": "string", "maxLength": 24 },
+        "type": { "type": "string", "enum": ["lab_test", "appointment", "medication", "checkup"] },
+        "completed": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "profileId", "title", "dueDate", "type", "completed", "createdAt", "updatedAt"]
+    },
+    "DoctorConsultation": {
+      "title": "DoctorConsultation",
+      "description": "Scheduled doctor consultation booking linked to a family profile and optional report.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "profileId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "doctorName": { "type": "string", "maxLength": 100 },
+        "specialty": { "type": "string", "maxLength": 80 },
+        "mode": { "type": "string", "enum": ["Video", "In-Clinic", "Second Opinion"] },
+        "scheduledDate": { "type": "string", "maxLength": 24 },
+        "timeSlot": { "type": "string", "maxLength": 32 },
+        "attachedReportId": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "profileId", "doctorName", "specialty", "mode", "scheduledDate", "timeSlot", "status", "createdAt", "updatedAt"]
+    },
+    "PrivacyAuditLog": {
+      "title": "PrivacyAuditLog",
+      "description": "Immutable privacy access and export audit log entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "profileId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "action": { "type": "string", "maxLength": 140 },
+        "actor": { "type": "string", "maxLength": 100 },
+        "target": { "type": "string", "maxLength": 140 },
+        "timestampLabel": { "type": "string", "maxLength": 48 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "profileId", "action", "actor", "target", "timestampLabel", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Root user workspace settings."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated PII storage for authenticated user email."
+    },
+    "/users/{userId}/profiles/{profileId}": {
+      "schema": { "$ref": "#/entities/FamilyProfile" },
+      "description": "Family health profiles owned by the user."
+    },
+    "/users/{userId}/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/LabReport" },
+      "description": "Lab reports belonging to a family profile."
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": { "$ref": "#/entities/HealthReminder" },
+      "description": "Health reminders and checkup alerts."
+    },
+    "/users/{userId}/consultations/{consultationId}": {
+      "schema": { "$ref": "#/entities/DoctorConsultation" },
+      "description": "Scheduled doctor consultations."
+    },
+    "/users/{userId}/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/PrivacyAuditLog" },
+      "description": "Privacy access and export audit events."
+    }
+  }
+}

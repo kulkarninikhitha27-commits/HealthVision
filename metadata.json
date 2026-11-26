@@ -1,0 +1,6 @@
+{
+  "name": "HealthVision",
+  "description": "AI-powered personal and family medical report analyzer with multilingual voice explanations, report comparison, abnormal value alerts, health trend tracking, and privacy controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

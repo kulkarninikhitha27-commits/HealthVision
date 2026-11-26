@@ -1,0 +1,290 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Shared Hardened Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isVerifiedOwner(userId) {
+      return isSignedIn()
+        && request.auth.uid == userId
+        && request.auth.token.email_verified == true;
+    }
+    function isReadOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserAccount(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'preferredLanguage', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'preferredLanguage', 'createdAt', 'updatedAt'])
+        && data.uid == userId
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.preferredLanguage is string && data.preferredLanguage.size() >= 2 && data.preferredLanguage.size() <= 32
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPrivateInfo(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'updatedAt'])
+        && data.uid == userId
+        && data.email is string && data.email.size() <= 160
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFamilyProfile(data, profileId, userId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'name', 'relation', 'age', 'bloodType',
+          'preferredLanguage', 'isLocked', 'conditions', 'allergies',
+          'emergencyContacts', 'privacySettings', 'goals', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'name', 'relation', 'age', 'bloodType', 'avatarUrl',
+          'preferredLanguage', 'pinCode', 'isLocked', 'conditions', 'allergies',
+          'emergencyNotes', 'emergencyContacts', 'privacySettings', 'goals', 'createdAt', 'updatedAt'
+        ])
+        && data.id == profileId
+        && data.ownerId == userId
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.relation is string && data.relation.size() >= 1 && data.relation.size() <= 40
+        && data.age is number && data.age >= 0 && data.age <= 130
+        && data.bloodType is string && data.bloodType.size() >= 1 && data.bloodType.size() <= 12
+        && isOptionalString(data, 'avatarUrl', 300)
+        && data.preferredLanguage is string && data.preferredLanguage.size() >= 2 && data.preferredLanguage.size() <= 32
+        && isOptionalString(data, 'pinCode', 12)
+        && data.isLocked is bool
+        && data.conditions is list && data.conditions.size() <= 15
+        && (data.conditions.size() == 0 || data.conditions[0] is string)
+        && data.allergies is list && data.allergies.size() <= 15
+        && (data.allergies.size() == 0 || data.allergies[0] is string)
+        && isOptionalString(data, 'emergencyNotes', 500)
+        && data.emergencyContacts is list && data.emergencyContacts.size() <= 5
+        && (data.emergencyContacts.size() == 0 || data.emergencyContacts[0] is map)
+        && data.privacySettings is map
+        && data.privacySettings.keys().hasOnly(['allowAiAnalysis', 'shareTrendsWithDoctor', 'requirePin', 'offlineCacheEnabled'])
+        && data.goals is map
+        && data.goals.keys().hasOnly(['sleepHours', 'hydrationLiters', 'activityMinutes', 'nutritionScore', 'sleepTarget', 'hydrationTarget', 'activityTarget'])
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLabReport(data, reportId, userId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'profileId', 'title', 'labName', 'reportDate',
+          'category', 'plainSummary', 'metrics', 'riskSignals',
+          'simplifiedTerms', 'followUpQuestions', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'profileId', 'title', 'labName', 'reportDate',
+          'category', 'plainSummary', 'metrics', 'riskSignals',
+          'simplifiedTerms', 'followUpQuestions', 'refinedAdvice', 'createdAt', 'updatedAt'
+        ])
+        && data.id == reportId
+        && data.ownerId == userId
+        && isValidId(data.profileId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.labName is string && data.labName.size() >= 1 && data.labName.size() <= 120
+        && data.reportDate is string && data.reportDate.size() >= 4 && data.reportDate.size() <= 24
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 64
+        && data.plainSummary is string && data.plainSummary.size() <= 3000
+        && data.metrics is list && data.metrics.size() <= 40
+        && (data.metrics.size() == 0 || data.metrics[0] is map)
+        && data.riskSignals is list && data.riskSignals.size() <= 10
+        && (data.riskSignals.size() == 0 || data.riskSignals[0] is map)
+        && data.simplifiedTerms is list && data.simplifiedTerms.size() <= 20
+        && (data.simplifiedTerms.size() == 0 || data.simplifiedTerms[0] is map)
+        && data.followUpQuestions is list && data.followUpQuestions.size() <= 8
+        && (data.followUpQuestions.size() == 0 || data.followUpQuestions[0] is map)
+        && isOptionalString(data, 'refinedAdvice', 2500)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidReminder(data, reminderId, userId) {
+      return data.keys().hasAll(['id', 'ownerId', 'profileId', 'title', 'dueDate', 'type', 'completed', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'profileId', 'title', 'dueDate', 'type', 'completed', 'notes', 'createdAt', 'updatedAt'])
+        && data.id == reminderId
+        && data.ownerId == userId
+        && isValidId(data.profileId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.dueDate is string && data.dueDate.size() >= 4 && data.dueDate.size() <= 24
+        && data.type in ['lab_test', 'appointment', 'medication', 'checkup']
+        && data.completed is bool
+        && isOptionalString(data, 'notes', 400)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidConsultation(data, consultationId, userId) {
+      return data.keys().hasAll(['id', 'ownerId', 'profileId', 'doctorName', 'specialty', 'mode', 'scheduledDate', 'timeSlot', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'profileId', 'doctorName', 'specialty', 'mode', 'scheduledDate', 'timeSlot', 'attachedReportId', 'status', 'notes', 'createdAt', 'updatedAt'])
+        && data.id == consultationId
+        && data.ownerId == userId
+        && isValidId(data.profileId)
+        && data.doctorName is string && data.doctorName.size() >= 1 && data.doctorName.size() <= 100
+        && data.specialty is string && data.specialty.size() >= 1 && data.specialty.size() <= 80
+        && data.mode in ['Video', 'In-Clinic', 'Second Opinion']
+        && data.scheduledDate is string && data.scheduledDate.size() >= 4 && data.scheduledDate.size() <= 24
+        && data.timeSlot is string && data.timeSlot.size() >= 2 && data.timeSlot.size() <= 32
+        && isOptionalString(data, 'attachedReportId', 128)
+        && data.status in ['scheduled', 'completed', 'cancelled']
+        && isOptionalString(data, 'notes', 500)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data, logId, userId) {
+      return data.keys().hasAll(['id', 'ownerId', 'profileId', 'action', 'actor', 'target', 'timestampLabel', 'createdAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'profileId', 'action', 'actor', 'target', 'timestampLabel', 'createdAt'])
+        && data.id == logId
+        && data.ownerId == userId
+        && isValidId(data.profileId)
+        && data.action is string && data.action.size() >= 1 && data.action.size() <= 140
+        && data.actor is string && data.actor.size() >= 1 && data.actor.size() <= 100
+        && data.target is string && data.target.size() >= 1 && data.target.size() <= 140
+        && data.timestampLabel is string && data.timestampLabel.size() >= 1 && data.timestampLabel.size() <= 48
+        && data.createdAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isReadOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId) && isVerifiedOwner(userId)
+        && isValidUserAccount(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isVerifiedOwner(userId)
+        && isValidUserAccount(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'preferredLanguage', 'updatedAt']);
+      allow delete: if false;
+
+      match /private/{docId} {
+        allow get: if isValidId(docId) && docId == 'account' && isReadOwner(userId);
+        allow list: if false;
+        allow create: if isValidId(docId) && docId == 'account' && isVerifiedOwner(userId)
+          && isValidPrivateInfo(incoming(), userId)
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(docId) && docId == 'account' && isVerifiedOwner(userId)
+          && isValidPrivateInfo(incoming(), userId)
+          && incoming().uid == existing().uid
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+        allow delete: if false;
+      }
+
+      match /profiles/{profileId} {
+        allow get: if isValidId(profileId) && isReadOwner(userId);
+        allow list: if isReadOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(profileId) && isVerifiedOwner(userId)
+          && isValidFamilyProfile(incoming(), profileId, userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(profileId) && isVerifiedOwner(userId)
+          && isValidFamilyProfile(incoming(), profileId, userId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['goals', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['privacySettings', 'isLocked', 'pinCode', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['emergencyContacts', 'emergencyNotes', 'bloodType', 'allergies', 'conditions', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'relation', 'age', 'preferredLanguage', 'updatedAt'])
+          );
+        allow delete: if isValidId(profileId) && isVerifiedOwner(userId);
+      }
+
+      match /reports/{reportId} {
+        allow get: if isValidId(reportId) && isReadOwner(userId);
+        allow list: if isReadOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(reportId) && isVerifiedOwner(userId)
+          && isValidLabReport(incoming(), reportId, userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/profiles/$(incoming().profileId));
+        allow update: if isValidId(reportId) && isVerifiedOwner(userId)
+          && isValidLabReport(incoming(), reportId, userId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().profileId == existing().profileId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['followUpQuestions', 'refinedAdvice', 'simplifiedTerms', 'updatedAt']);
+        allow delete: if isValidId(reportId) && isVerifiedOwner(userId);
+      }
+
+      match /reminders/{reminderId} {
+        allow get: if isValidId(reminderId) && isReadOwner(userId);
+        allow list: if isReadOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(reminderId) && isVerifiedOwner(userId)
+          && isValidReminder(incoming(), reminderId, userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/profiles/$(incoming().profileId));
+        allow update: if isValidId(reminderId) && isVerifiedOwner(userId)
+          && isValidReminder(incoming(), reminderId, userId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().profileId == existing().profileId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'dueDate', 'notes', 'updatedAt']);
+        allow delete: if isValidId(reminderId) && isVerifiedOwner(userId);
+      }
+
+      match /consultations/{consultationId} {
+        allow get: if isValidId(consultationId) && isReadOwner(userId);
+        allow list: if isReadOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(consultationId) && isVerifiedOwner(userId)
+          && isValidConsultation(incoming(), consultationId, userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/profiles/$(incoming().profileId));
+        allow update: if isValidId(consultationId) && isVerifiedOwner(userId)
+          && isValidConsultation(incoming(), consultationId, userId)
+          && existing().status == 'scheduled'
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().profileId == existing().profileId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'updatedAt']);
+        allow delete: if isValidId(consultationId) && isVerifiedOwner(userId);
+      }
+
+      match /auditLogs/{logId} {
+        allow get: if isValidId(logId) && isReadOwner(userId);
+        allow list: if isReadOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(logId) && isVerifiedOwner(userId)
+          && isValidAuditLog(incoming(), logId, userId)
+          && incoming().createdAt == request.time
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/profiles/$(incoming().profileId));
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}
